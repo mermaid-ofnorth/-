@@ -1,0 +1,1784 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Кибербуллинг: Личный выбор</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  
+  :root {
+    --bg: #0a0e14;
+    --panel: #0d1117;
+    --panel-2: #161b22;
+    --border: #21262d;
+    --border-2: #30363d;
+    --text: #e6edf3;
+    --text-dim: #8b949e;
+    --accent: #58a6ff;
+    --good: #3fb950;
+    --warn: #d29922;
+    --bad: #f85149;
+    --evidence: #d2a8ff;
+  }
+
+  html, body {
+    height: 100%;
+    overflow: hidden;
+    font-family: -apple-system, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+  }
+
+  body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-image: 
+      radial-gradient(circle at 20% 10%, rgba(88, 166, 255, 0.08), transparent 40%),
+      radial-gradient(circle at 80% 90%, rgba(255, 88, 88, 0.06), transparent 40%);
+  }
+
+  #game {
+    width: 100%;
+    max-width: 640px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    height: 100dvh;
+    position: relative;
+  }
+
+  @media (min-width: 700px) {
+    #game { border-radius: 16px; height: 92vh; max-height: 820px; }
+  }
+
+  #header {
+    padding: 12px 16px;
+    background: var(--panel-2);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0;
+    gap: 8px;
+  }
+
+  #header .title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    color: var(--accent);
+    text-transform: uppercase;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-shrink: 1;
+  }
+
+  #header .stats {
+    display: flex;
+    gap: 8px;
+    font-size: 10px;
+    color: var(--text-dim);
+    align-items: center;
+    flex-shrink: 0;
+  }
+
+  #header .stat { display: flex; align-items: center; gap: 3px; }
+  #header .stat b { color: var(--text); font-weight: 700; font-size: 11px; }
+
+  .icon-btn {
+    background: transparent;
+    border: 1px solid var(--border-2);
+    color: var(--text-dim);
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+    flex-shrink: 0;
+    position: relative;
+  }
+
+  .icon-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .icon-btn.active { border-color: var(--good); color: var(--good); }
+  .icon-btn.muted { border-color: var(--bad); color: var(--bad); }
+  .icon-btn.evidence-btn { border-color: rgba(210, 168, 255, 0.4); color: var(--evidence); }
+  .icon-btn.evidence-btn:hover { border-color: var(--evidence); background: rgba(210, 168, 255, 0.08); }
+
+  .icon-btn.evidence-btn .badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    background: var(--evidence);
+    color: #0d1117;
+    font-size: 9px;
+    font-weight: 700;
+    min-width: 15px;
+    height: 15px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+  }
+
+  #trust-bar {
+    width: 100%;
+    height: 3px;
+    background: var(--border);
+    flex-shrink: 0;
+  }
+
+  #trust-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--bad), var(--warn), var(--good));
+    transition: width 0.6s ease;
+  }
+
+  #content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    scroll-behavior: smooth;
+  }
+
+  #content::-webkit-scrollbar { width: 6px; }
+  #content::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 3px; }
+
+  .msg {
+    max-width: 88%;
+    padding: 10px 14px;
+    border-radius: 14px;
+    font-size: 14px;
+    line-height: 1.55;
+    animation: fadeIn 0.5s ease;
+    word-wrap: break-word;
+    white-space: pre-line;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .msg.author {
+    align-self: flex-start;
+    background: var(--border);
+    border-bottom-left-radius: 4px;
+  }
+
+  .msg.author .name {
+    display: block;
+    font-size: 11px;
+    color: var(--accent);
+    font-weight: 700;
+    margin-bottom: 3px;
+  }
+
+  .msg.system {
+    align-self: center;
+    background: transparent;
+    border: 1px dashed var(--border-2);
+    color: var(--text-dim);
+    font-size: 12px;
+    font-style: italic;
+    text-align: center;
+    max-width: 95%;
+    padding: 8px 12px;
+  }
+
+  .msg.danger {
+    align-self: flex-start;
+    background: rgba(248, 81, 73, 0.12);
+    border: 1px solid rgba(248, 81, 73, 0.35);
+    border-bottom-left-radius: 4px;
+  }
+
+  .msg.danger .name { color: var(--bad); }
+
+  .msg.evidence {
+    align-self: center;
+    background: rgba(210, 168, 255, 0.12);
+    border: 1px solid rgba(210, 168, 255, 0.4);
+    color: var(--evidence);
+    font-size: 12px;
+    font-weight: 600;
+    text-align: center;
+    max-width: 90%;
+    padding: 8px 14px;
+    border-radius: 20px;
+  }
+
+  .msg.you {
+    align-self: flex-end;
+    background: #1f6feb;
+    border-bottom-right-radius: 4px;
+    color: #fff;
+  }
+
+  .msg.you-bad {
+    align-self: flex-end;
+    background: #7a1f1f;
+    border-bottom-right-radius: 4px;
+    color: #ffd7d7;
+    border: 1px solid rgba(248, 81, 73, 0.5);
+  }
+
+  .msg.thought {
+    align-self: flex-end;
+    background: transparent;
+    border: 1px dashed #4a5568;
+    color: #a0aec0;
+    font-style: italic;
+    font-size: 12.5px;
+    border-bottom-right-radius: 4px;
+    max-width: 88%;
+  }
+
+  .msg.teacher {
+    align-self: flex-start;
+    background: rgba(63, 185, 80, 0.12);
+    border: 1px solid rgba(63, 185, 80, 0.35);
+    border-bottom-left-radius: 4px;
+  }
+
+  .msg.teacher .name {
+    display: block;
+    font-size: 11px;
+    color: var(--good);
+    font-weight: 700;
+    margin-bottom: 3px;
+  }
+
+  #choices {
+    padding: 14px 16px 18px;
+    background: var(--panel-2);
+    border-top: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex-shrink: 0;
+    max-height: 50%;
+    overflow-y: auto;
+  }
+
+  #choices::-webkit-scrollbar { width: 4px; }
+  #choices::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 2px; }
+
+  .choice-btn {
+    text-align: left;
+    padding: 12px 14px;
+    background: var(--border);
+    border: 1px solid var(--border-2);
+    color: var(--text);
+    border-radius: 10px;
+    font-size: 13.5px;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    line-height: 1.4;
+    min-height: 46px;
+  }
+
+  .choice-btn:hover {
+    background: #2d333b;
+    border-color: var(--accent);
+    transform: translateX(3px);
+  }
+
+  .choice-btn:active { transform: scale(0.98); }
+
+  .choice-btn.danger-choice:hover {
+    border-color: var(--bad);
+    background: rgba(248, 81, 73, 0.1);
+  }
+
+  .choice-btn.evidence-choice {
+    border-color: rgba(210, 168, 255, 0.3);
+  }
+
+  .choice-btn.evidence-choice:hover {
+    border-color: var(--evidence);
+    background: rgba(210, 168, 255, 0.08);
+  }
+
+  .choice-btn .hint {
+    display: block;
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 3px;
+    font-style: italic;
+  }
+
+  .end-screen {
+    text-align: left;
+    padding: 20px 4px;
+    animation: fadeIn 0.8s ease;
+  }
+
+  .end-screen h1 {
+    font-size: 22px;
+    margin-bottom: 8px;
+    letter-spacing: 1px;
+    text-align: center;
+  }
+
+  .end-screen .rank {
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-bottom: 20px;
+    opacity: 0.7;
+    text-align: center;
+    display: block;
+  }
+
+  .end-screen p {
+    font-size: 13.5px;
+    line-height: 1.7;
+    color: #c9d1d9;
+    margin-bottom: 14px;
+  }
+
+  .end-screen .btn {
+    display: inline-block;
+    margin-top: 14px;
+    margin-right: 8px;
+    padding: 12px 22px;
+    background: #238636;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-family: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .end-screen .btn:hover { background: #2ea043; }
+  .end-screen .btn.secondary { background: var(--border-2); }
+  .end-screen .btn.secondary:hover { background: #444c56; }
+  .end-screen .btn.pdf { background: #b62324; }
+  .end-screen .btn.pdf:hover { background: #d32f2f; }
+
+  .end-good h1 { color: var(--good); }
+  .end-neutral h1 { color: var(--warn); }
+  .end-bad h1 { color: var(--bad); }
+
+  .divider { height: 1px; background: var(--border); margin: 18px 0; }
+
+  .warning-block {
+    background: rgba(248, 81, 73, 0.08);
+    border: 1px solid rgba(248, 81, 73, 0.3);
+    border-left: 4px solid var(--bad);
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin: 16px 0;
+  }
+
+  .warning-block .warning-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: var(--bad);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .warning-block p {
+    font-size: 12.5px !important;
+    color: #c9d1d9;
+    line-height: 1.65;
+    margin-bottom: 10px !important;
+  }
+
+  .warning-block p:last-child { margin-bottom: 0 !important; }
+  .warning-block strong { color: #fff; }
+
+  .law-list { margin: 10px 0 0 0; padding-left: 0; list-style: none; }
+
+  .law-item {
+    font-size: 12px;
+    color: #c9d1d9;
+    line-height: 1.6;
+    padding: 8px 12px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 6px;
+    margin-bottom: 6px;
+    border-left: 3px solid var(--bad);
+  }
+
+  .law-item .law-name { color: var(--bad); font-weight: 700; font-size: 11.5px; }
+  .law-item .law-penalty { color: #f0b8b8; font-size: 11px; margin-top: 3px; display: block; }
+
+  .responsibility-note {
+    background: rgba(248, 81, 73, 0.15);
+    border: 1px solid var(--bad);
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-top: 12px;
+    font-size: 12.5px;
+    line-height: 1.6;
+    color: #f0b8b8;
+    text-align: center;
+  }
+
+  .responsibility-note strong { color: #fff; }
+
+  .certificate {
+    background: #ffffff;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    padding: 28px 24px;
+    margin: 22px 0;
+    position: relative;
+    overflow: hidden;
+    color: #1a1a1a;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+  }
+
+  .certificate::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #1e7c3a, #2b7cbf);
+  }
+
+  .certificate-inner { position: relative; z-index: 1; }
+
+  .cert-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 22px;
+    padding-bottom: 16px;
+    border-bottom: 2px solid #e5e7eb;
+  }
+
+  .cert-org { font-size: 10px; letter-spacing: 3px; color: #2b7cbf; text-transform: uppercase; font-weight: 700; margin-bottom: 4px; }
+  .cert-org-sub { font-size: 9px; color: #6b7280; letter-spacing: 1px; }
+  .cert-logo { font-size: 28px; line-height: 1; color: #1e7c3a; }
+
+  .cert-label { font-size: 10px; letter-spacing: 4px; color: #6b7280; text-transform: uppercase; text-align: center; margin-bottom: 10px; }
+  .cert-title { font-size: 21px; font-weight: 700; text-align: center; color: #111827; line-height: 1.25; margin-bottom: 20px; }
+  .cert-presented { font-size: 11px; color: #6b7280; text-align: center; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px; }
+  .cert-name { font-size: 22px; font-weight: 700; text-align: center; color: #111827; margin-bottom: 4px; word-break: break-word; }
+  .cert-name-line { height: 2px; width: 60%; margin: 0 auto 22px; background: linear-gradient(90deg, transparent, #1e7c3a, transparent); }
+  .cert-desc { font-size: 12px; color: #374151; line-height: 1.7; text-align: center; margin-bottom: 22px; padding: 0 6px; }
+  .cert-desc strong { color: #1e7c3a; }
+
+  .cert-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 22px; }
+  .cert-stat { background: #f0f7ff; border: 1.5px solid #2b7cbf; border-radius: 6px; padding: 10px 12px; text-align: center; }
+  .cert-stat-label { font-size: 9px; color: #6b7280; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 4px; }
+  .cert-stat-value { font-size: 16px; font-weight: 700; color: #2b7cbf; }
+
+  .cert-result { text-align: center; margin-bottom: 18px; }
+  .cert-result-label { font-size: 9px; color: #6b7280; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 6px; }
+  .cert-result-value { font-size: 15px; color: #1e7c3a; font-weight: 700; }
+
+  .cert-footer-clean { display: flex; justify-content: center; align-items: center; gap: 32px; padding-top: 16px; border-top: 2px solid #e5e7eb; flex-wrap: wrap; }
+  .cert-meta-block { font-size: 10px; color: #6b7280; line-height: 1.6; text-align: center; }
+  .cert-meta-block b { color: #111827; font-weight: 600; }
+  .cert-id { font-family: 'Courier New', monospace; color: #2b7cbf; font-size: 10px; letter-spacing: 1px; font-weight: 700; }
+
+  #author-credit {
+    padding: 6px 16px 10px;
+    text-align: center;
+    font-size: 9px;
+    color: #4a5360;
+    letter-spacing: 0.5px;
+    flex-shrink: 0;
+    background: var(--panel);
+    border-top: 1px solid var(--border);
+    user-select: none;
+    opacity: 0.7;
+  }
+
+  .modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 100;
+    padding: 20px;
+    animation: fadeIn 0.2s ease;
+  }
+
+  .modal-content {
+    background: var(--panel-2);
+    border: 1px solid var(--border-2);
+    border-radius: 12px;
+    padding: 24px;
+    max-width: 460px;
+    width: 100%;
+    max-height: 85vh;
+    overflow-y: auto;
+    text-align: center;
+  }
+
+  .modal-content h2 { font-size: 17px; margin-bottom: 10px; color: var(--accent); }
+  .modal-content p { font-size: 13px; color: var(--text-dim); margin-bottom: 18px; line-height: 1.6; }
+  .modal-content input {
+    width: 100%;
+    padding: 12px 14px;
+    background: var(--panel);
+    border: 1px solid var(--border-2);
+    color: var(--text);
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+    margin-bottom: 14px;
+    outline: none;
+  }
+  .modal-content input:focus { border-color: var(--accent); }
+  .modal-content .btn {
+    width: 100%;
+    padding: 12px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .modal-content .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .evidence-list { text-align: left; margin-top: 14px; }
+  .evidence-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px;
+    background: rgba(210, 168, 255, 0.05);
+    border: 1px solid rgba(210, 168, 255, 0.2);
+    border-radius: 8px;
+    margin-bottom: 8px;
+  }
+  .evidence-icon { font-size: 20px; flex-shrink: 0; line-height: 1; }
+  .evidence-text { flex: 1; }
+  .evidence-title { font-size: 13px; font-weight: 700; color: var(--evidence); margin-bottom: 3px; }
+  .evidence-desc { font-size: 11.5px; color: var(--text-dim); line-height: 1.5; }
+
+  .evidence-empty {
+    text-align: center;
+    padding: 20px;
+    color: var(--text-dim);
+    font-size: 12.5px;
+    font-style: italic;
+  }
+
+  @media (max-width: 500px) {
+    #header .stats { font-size: 9px; gap: 5px; }
+    #header .title { font-size: 10px; letter-spacing: 0.5px; }
+    .msg { font-size: 13.5px; max-width: 92%; }
+    .choice-btn { font-size: 13px; padding: 11px 12px; }
+    #content { padding: 16px 12px; }
+    #choices { padding: 12px 12px 14px; }
+    .certificate { padding: 20px 16px; }
+    .cert-title { font-size: 17px; }
+    .cert-name { font-size: 18px; }
+    .cert-desc { font-size: 11px; }
+    .end-screen .btn { font-size: 12px; padding: 10px 16px; }
+    .cert-stats { gap: 8px; }
+    .warning-block { padding: 12px; }
+    .law-item { font-size: 11px; }
+  }
+
+  #game:fullscreen { max-width: 100%; height: 100vh; border-radius: 0; border: none; }
+  #game:-webkit-full-screen { max-width: 100%; height: 100vh; border-radius: 0; border: none; }
+
+  @media print {
+    body { background: #fff !important; }
+    #header, #trust-bar, #choices, #author-credit { display: none !important; }
+    #game { box-shadow: none !important; border: none !important; max-width: 100% !important; height: auto !important; background: #fff !important; }
+    #content { overflow: visible !important; padding: 0 !important; }
+    .certificate { box-shadow: none !important; border: 1.5px solid #1e7c3a !important; page-break-inside: avoid; margin: 0 auto !important; }
+    .end-screen .btn { display: none !important; }
+    .end-screen h1, .end-screen .rank, .end-screen p, .divider, .warning-block { display: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<div id="game">
+  <div id="header">
+    <div class="title">📱 Кибербуллинг: Личный выбор</div>
+    <div class="stats">
+      <span class="stat">🤝 <b id="trust-val">0</b></span>
+      <span class="stat">📁 <b id="evid-val">0</b>/6</span>
+      <span class="stat">📅 <b id="day-val">1</b></span>
+    </div>
+    <button class="icon-btn evidence-btn" id="evidence-btn" title="Папка с доказательствами">
+      📁<span class="badge" id="evidence-badge">0</span>
+    </button>
+    <button class="icon-btn" id="sound-btn" title="Звук">🔊</button>
+    <button class="icon-btn" id="fs-btn" title="На весь экран">⛶</button>
+  </div>
+  <div id="trust-bar"><div id="trust-fill"></div></div>
+
+  <div id="content"></div>
+  <div id="choices"></div>
+
+  <div id="author-credit">© Чеботарева Ю.А., КИП ФИН, 2026</div>
+</div>
+
+<script>
+/* ============================================================
+   🐢 НАСТРОЙКИ СКОРОСТИ
+============================================================ */
+const SPEED = {
+  base: 3000,       // обычные сообщения в диалогах без выбора
+  slow: 3800,       // критичные реплики (Дима, ночь кризиса)
+  dialog: 3400,     // специально для диалогов (брат, куратор, Соня)
+  fast: 1800,       // для сцен с выборами / быстрых моментов (пролог)
+  pause: 1800,      // пауза перед выбором
+  longPause: 3000,  // пауза после драматичных моментов
+  shortPause: 1200  // короткая пауза
+};
+
+const Audio = {
+  ctx: null, enabled: true, ambientNodes: [],
+  init() { if (!this.ctx) { try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) { this.enabled = false; } } },
+  resume() { if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume(); },
+  startAmbient() {
+    if (!this.ctx || !this.enabled || this.ambientNodes.length) return;
+    const bufferSize = 2 * this.ctx.sampleRate;
+    const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1) * 0.5;
+    const source = this.ctx.createBufferSource();
+    source.buffer = buffer; source.loop = true;
+    const filter = this.ctx.createBiquadFilter();
+    filter.type = 'lowpass'; filter.frequency.value = 800;
+    const gain = this.ctx.createGain(); gain.gain.value = 0.015;
+    source.connect(filter).connect(gain).connect(this.ctx.destination);
+    source.start();
+    this.ambientNodes = [source, filter, gain];
+  },
+  stopAmbient() { this.ambientNodes.forEach(n => { try { n.stop?.(); n.disconnect?.(); } catch(e){} }); this.ambientNodes = []; },
+  notify() {
+    if (!this.ctx || !this.enabled) return;
+    const o = this.ctx.createOscillator(), g = this.ctx.createGain();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(880, this.ctx.currentTime);
+    o.frequency.exponentialRampToValueAtTime(440, this.ctx.currentTime + 0.15);
+    g.gain.setValueAtTime(0.08, this.ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.2);
+    o.connect(g).connect(this.ctx.destination); o.start(); o.stop(this.ctx.currentTime + 0.2);
+  },
+  alarm() {
+    if (!this.ctx || !this.enabled) return;
+    [0, 0.15, 0.3].forEach((t, i) => {
+      const o = this.ctx.createOscillator(), g = this.ctx.createGain();
+      o.type = 'square'; o.frequency.value = i % 2 === 0 ? 220 : 180;
+      g.gain.setValueAtTime(0.05, this.ctx.currentTime + t);
+      g.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + t + 0.12);
+      o.connect(g).connect(this.ctx.destination);
+      o.start(this.ctx.currentTime + t); o.stop(this.ctx.currentTime + t + 0.12);
+    });
+  },
+  click() {
+    if (!this.ctx || !this.enabled) return;
+    const o = this.ctx.createOscillator(), g = this.ctx.createGain();
+    o.type = 'sine'; o.frequency.value = 660;
+    g.gain.setValueAtTime(0.04, this.ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.08);
+    o.connect(g).connect(this.ctx.destination);
+    o.start(); o.stop(this.ctx.currentTime + 0.08);
+  },
+  pickup() {
+    if (!this.ctx || !this.enabled) return;
+    [660, 990].forEach((f, i) => {
+      const o = this.ctx.createOscillator(), g = this.ctx.createGain();
+      o.type = 'triangle'; o.frequency.value = f;
+      const t = this.ctx.currentTime + i * 0.08;
+      g.gain.setValueAtTime(0.05, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+      o.connect(g).connect(this.ctx.destination);
+      o.start(t); o.stop(t + 0.2);
+    });
+  },
+  success() {
+    if (!this.ctx || !this.enabled) return;
+    [523, 659, 784, 1047].forEach((f, i) => {
+      const o = this.ctx.createOscillator(), g = this.ctx.createGain();
+      o.type = 'sine'; o.frequency.value = f;
+      const t = this.ctx.currentTime + i * 0.12;
+      g.gain.setValueAtTime(0.06, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+      o.connect(g).connect(this.ctx.destination);
+      o.start(t); o.stop(t + 0.4);
+    });
+  },
+  toggle() {
+    this.enabled = !this.enabled;
+    if (this.enabled) { this.resume(); this.startAmbient(); } else this.stopAmbient();
+    return this.enabled;
+  }
+};
+
+const SAVE_KEY = 'lenta_save_v12';
+const NAME_KEY = 'lenta_name_v12';
+const CERT_KEY = 'lenta_certs_v12';
+
+const Save = {
+  save() { try { localStorage.setItem(SAVE_KEY, JSON.stringify({ state, scene: currentScene, ts: Date.now() })); } catch(e) {} },
+  clear() { try { localStorage.removeItem(SAVE_KEY); } catch(e) {} },
+  saveName(n) { try { localStorage.setItem(NAME_KEY, n); } catch(e) {} },
+  getName() { try { return localStorage.getItem(NAME_KEY) || ''; } catch(e) { return ''; } },
+  addCert(c) { try { const arr = JSON.parse(localStorage.getItem(CERT_KEY) || '[]'); arr.push(c); localStorage.setItem(CERT_KEY, JSON.stringify(arr)); } catch(e) {} }
+};
+
+const EVIDENCE_DB = {
+  chat: { icon: '📱', title: 'Скриншот чата с оскорблениями', desc: 'Первое сообщение Никиты с насмешками над Димой.' },
+  metadata: { icon: '🔍', title: 'Метаданные анонимного канала', desc: 'Технический анализ: канал создан с аккаунта, привязанного к IP Никиты.' },
+  witness: { icon: '📸', title: 'Скриншоты от свидетеля', desc: 'Соня передала переписку в закрытом чате, где Никита координирует травлю.' },
+  backup: { icon: '💾', title: 'Резервная копия переписок', desc: 'Архив 47 сообщений с угрозами.' },
+  screenrecord: { icon: '🎥', title: 'Запись экрана с доксингом', desc: 'Видеозапись момента публикации домашнего адреса Димы.' },
+  confession: { icon: '✉️', title: 'Письменное признание', desc: 'Никита признаёт вину после разговора с куратором.' }
+};
+
+let state = {
+  trust: 0,
+  evidence: 0,
+  evidenceItems: [],
+  day: 1,
+  flags: {},
+  playerName: '',
+  complicity: 0
+};
+let currentScene = 'start';
+
+const content = document.getElementById('content');
+const choicesBox = document.getElementById('choices');
+
+function updateHUD() {
+  document.getElementById('trust-val').textContent = Math.max(0, Math.min(100, state.trust));
+  document.getElementById('evid-val').textContent = state.evidence;
+  document.getElementById('day-val').textContent = state.day;
+  document.getElementById('trust-fill').style.width = Math.max(0, Math.min(100, state.trust)) + '%';
+  document.getElementById('evidence-badge').textContent = state.evidence;
+}
+
+function clearScreen() { content.innerHTML = ''; choicesBox.innerHTML = ''; }
+function scrollDown() { content.scrollTop = content.scrollHeight; }
+
+function addMsg(text, type = 'system', name = null) {
+  const div = document.createElement('div');
+  div.className = 'msg ' + type;
+  if (name) { const n = document.createElement('span'); n.className = 'name'; n.textContent = name; div.appendChild(n); }
+  div.appendChild(document.createTextNode(text));
+  content.appendChild(div); scrollDown();
+}
+
+function wait(ms) { return new Promise(res => setTimeout(res, ms)); }
+
+/* === Медленная последовательность с множителями по типу сообщения === */
+async function sequence(messages, delay = SPEED.base) {
+  for (const m of messages) {
+    if (m.delay) await wait(m.delay);
+    addMsg(m.text, m.type || 'system', m.name);
+    if (m.type === 'danger') Audio.notify();
+    if (m.type === 'evidence') Audio.pickup();
+
+    let typeMultiplier = 1;
+    if (m.type === 'danger') typeMultiplier = 1.5;
+    if (m.type === 'thought') typeMultiplier = 1.8;
+    if (m.type === 'teacher') typeMultiplier = 1.6;
+    if (m.type === 'author' && (m.name === 'Дима' || m.name === 'Брат')) typeMultiplier = 1.5;
+    if (m.type === 'you' || m.type === 'you-bad') typeMultiplier = 0.7;
+
+    await wait(delay * typeMultiplier);
+  }
+}
+
+function showChoices(list) {
+  choicesBox.innerHTML = '';
+  list.forEach(choice => {
+    const btn = document.createElement('button');
+    btn.className = 'choice-btn' + (choice.danger ? ' danger-choice' : '') + (choice.evidence ? ' evidence-choice' : '');
+    btn.innerHTML = choice.text + (choice.hint ? `<span class="hint">${choice.hint}</span>` : '');
+    btn.onclick = () => { Audio.click(); choicesBox.innerHTML = ''; choice.action(); };
+    choicesBox.appendChild(btn);
+  });
+}
+
+function changeTrust(d) { state.trust += d; updateHUD(); Save.save(); }
+function increaseComplicity(n = 1) { state.complicity = Math.min(5, state.complicity + n); Save.save(); }
+
+function addEvidence(key) {
+  if (state.evidenceItems.includes(key)) return false;
+  if (state.evidence >= 6) return false;
+  const item = EVIDENCE_DB[key];
+  if (!item) return false;
+  state.evidenceItems.push(key);
+  state.evidence = state.evidenceItems.length;
+  updateHUD(); Save.save();
+  addMsg(`📁 +1 улика: ${item.title}`, 'evidence');
+  Audio.pickup();
+  return true;
+}
+
+function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[c]); }
+
+function buildLegalWarning() {
+  return `
+    <div class="warning-block">
+      <div class="warning-title">⚠️ Что это значит на практике</div>
+      <p>Ты был свидетелем систематической травли. Ты видел угрозы, доксинг, унижение. И ты решил, что это «не твоё дело».</p>
+      <p>Но по закону РФ — <strong>молчание и бездействие не освобождают от ответственности</strong>, если ты знал о готовящемся или совершаемом преступлении.</p>
+      <div style="font-size:11px; letter-spacing:2px; color:var(--bad); text-transform:uppercase; margin:14px 0 8px 0;">Статьи, которые применимы к ситуации</div>
+      <ul class="law-list">
+        <li class="law-item"><span class="law-name">Ст. 110 УК РФ — Доведение до самоубийства</span><span class="law-penalty">Систематическое унижение, угрозы, жестокое обращение, приведшие к суициду или попытке. Наказание: до 15 лет лишения свободы.</span></li>
+        <li class="law-item"><span class="law-name">Ст. 110.1 УК РФ — Склонение к самоубийству</span><span class="law-penalty">Уговоры, предложения, обман, направленные на побуждение к суициду. При отягчающих (в т.ч. через интернет): до 10 лет лишения свободы.</span></li>
+        <li class="law-item"><span class="law-name">Ст. 128.1 УК РФ — Клевета</span><span class="law-penalty">Распространение заведомо ложных сведений, порочащих честь и достоинство. Через интернет: штраф до 1 млн рублей или лишение свободы до 2 лет.</span></li>
+        <li class="law-item"><span class="law-name">Ст. 137 УК РФ — Нарушение неприкосновенности частной жизни</span><span class="law-penalty">Публикация личных данных (адрес, переписка, фото) без согласия. Штраф до 200 тыс. рублей или лишение свободы до 5 лет.</span></li>
+      </ul>
+      <div class="responsibility-note">
+        <strong>Помни:</strong> даже если ты не писал оскорблений сам — твоё присутствие в чате, твоё «лайк» под мемом, твоё молчание в ответ на «не моё дело» — всё это создаёт среду, в которой травля становится нормой.
+      </div>
+    </div>
+  `;
+}
+
+function buildPassiveWarning() {
+  return `
+    <div class="warning-block">
+      <div class="warning-title">⚠️ Подумай ещё раз</div>
+      <p>Ты видел, как травили человека. Ты знал, что происходит. И ты решил, что это «не твоё дело».</p>
+      <p><strong>Но молчание — это не нейтралитет.</strong> Когда ты молчишь, ты даёшь агрессору понять, что он прав. Что так можно. Что никто не остановит.</p>
+      <p>Молчание и игнорирование — это <strong>косвенная поддержка травли</strong>. Ты не спас Диму. Но ты и не помешал. А в такой ситуации — это одно и то же.</p>
+    </div>
+  `;
+}
+
+function buildComplicityWarning() {
+  return `
+    <div class="warning-block" style="background: rgba(248, 81, 73, 0.15); border-left-color: #b62324;">
+      <div class="warning-title" style="font-size:12px;">🚨 Ты участвовал в травле</div>
+      <p>Ты не просто молчал. Ты отправлял мемы. Ты смеялся. Ты подливал масла в огонь.</p>
+      <p><strong>Возможно, ты думал, что это «просто шутка».</strong> Но для Димы это была не шутка. Это была ежедневная пытка — от которой он не мог спрятаться, потому что она шла с экрана его собственного телефона.</p>
+      <p>По закону РФ твои действия могут квалифицироваться как <strong>соучастие</strong> — даже если ты сам не писал прямых оскорблений, а только распространял контент или поддерживал агрессоров.</p>
+      <ul class="law-list">
+        <li class="law-item">
+          <span class="law-name">Ст. 33 + Ст. 110 УК РФ — Соучастие в доведении до самоубийства</span>
+          <span class="law-penalty">Пособничество, подстрекательство или организация систематического унижения. Наказание — как за основное преступление: до 15 лет.</span>
+        </li>
+        <li class="law-item">
+          <span class="law-name">Ст. 5.61 КоАП РФ — Оскорбление</span>
+          <span class="law-penalty">Унижение чести и достоинства, выраженное в неприличной форме, в том числе публично. Штраф до 500 тыс. рублей.</span>
+        </li>
+        <li class="law-item">
+          <span class="law-name">Ст. 20.3 КоАП РФ — Пропаганда и публичное демонстрирование запрещённой символики</span>
+          <span class="law-penalty">Распространение унизительных материалов в интернете. Штраф до 100 тыс. рублей или административный арест до 15 суток.</span>
+        </li>
+      </ul>
+      <div class="responsibility-note" style="background: rgba(248, 81, 73, 0.25);">
+        <strong>Запомни на всю жизнь:</strong> «просто шутка» и «я ничего не делал, я только смотрел» — не защита. Суд и совесть этого не принимают. Единственный способ остановить травлю — не участвовать в ней. Ни активно, ни пассивно.
+      </div>
+    </div>
+  `;
+}
+
+function openEvidenceFolder() {
+  Audio.click();
+  const modal = document.createElement('div');
+  modal.className = 'modal';
+  let listHtml = '';
+  if (state.evidenceItems.length === 0) {
+    listHtml = `<div class="evidence-empty">📁 Папка пока пуста.<br><br>Собирай доказательства — скриншоты, метаданные,<br>показания свидетелей. Без них ты не сможешь<br>ничего доказать, даже если прав.</div>`;
+  } else {
+    listHtml = '<div class="evidence-list">';
+    state.evidenceItems.forEach(key => {
+      const item = EVIDENCE_DB[key];
+      listHtml += `<div class="evidence-item"><div class="evidence-icon">${item.icon}</div><div class="evidence-text"><div class="evidence-title">${item.title}</div><div class="evidence-desc">${item.desc}</div></div></div>`;
+    });
+    listHtml += '</div>';
+    listHtml += `<p style="text-align:center; font-size:11.5px; color:#8b949e; margin-top:14px;">Собрано: <b style="color:#d2a8ff;">${state.evidence}</b> из <b>6</b>.${state.evidence >= 3 ? '<br><span style="color:#3fb950;">✔ Достаточно для системного разбирательства</span>' : ''}</p>`;
+  }
+  modal.innerHTML = `<div class="modal-content"><h2>📁 Папка с доказательствами</h2><p>Собранные улики пригодятся в разговоре<br>с куратором или родителями.</p>${listHtml}<button class="btn" id="close-evidence" style="margin-top:16px;">Закрыть</button></div>`;
+  document.body.appendChild(modal);
+  modal.querySelector('#close-evidence').onclick = () => modal.remove();
+  modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+}
+
+function askPlayerName() {
+  return new Promise(resolve => {
+    const existing = Save.getName();
+    if (existing) { state.playerName = existing; return resolve(existing); }
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.innerHTML = `<div class="modal-content"><h2>👋 Как тебя зовут?</h2><p>Имя понадобится для сертификата.<br>Оно сохранится только на этом устройстве.</p><input type="text" id="name-input" maxlength="40" placeholder="Имя и фамилия..." autocomplete="off"><button class="btn" id="name-btn" disabled>Начать</button></div>`;
+    document.body.appendChild(modal);
+    const input = modal.querySelector('#name-input');
+    const btn = modal.querySelector('#name-btn');
+    input.addEventListener('input', () => { btn.disabled = input.value.trim().length < 2; });
+    input.addEventListener('keydown', e => { if (e.key === 'Enter' && !btn.disabled) btn.click(); });
+    btn.onclick = () => { const val = input.value.trim(); if (val.length < 2) return; state.playerName = val; Save.saveName(val); modal.remove(); resolve(val); };
+    setTimeout(() => input.focus(), 200);
+  });
+}
+
+async function exportCertificatePDF(certData) {
+  try {
+    const printArea = document.createElement('div');
+    printArea.style.cssText = `position:fixed;left:-9999px;top:0;width:1123px;height:794px;background:#fff;font-family:'Segoe UI','Roboto',Arial,sans-serif;color:#1a1a1a;box-sizing:border-box;`;
+    printArea.innerHTML = `
+      <div style="width:100%;height:100%;background:#fff;padding:44px 60px;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;position:relative;">
+        <div style="position:absolute;top:0;left:0;right:0;height:8px;background:linear-gradient(90deg,#1e7c3a,#2b7cbf);"></div>
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:18px;border-bottom:2px solid #e5e7eb;">
+          <div><div style="font-size:11px;letter-spacing:4px;color:#2b7cbf;text-transform:uppercase;font-weight:700;">Образовательная программа</div><div style="font-size:10px;letter-spacing:1.5px;color:#6b7280;margin-top:4px;">по кибербезопасности и цифровой этике</div></div>
+          <div style="font-size:34px;color:#1e7c3a;line-height:1;">◆</div>
+        </div>
+        <div style="text-align:center;padding:16px 0;">
+          <div style="font-size:11px;letter-spacing:6px;color:#6b7280;text-transform:uppercase;margin-bottom:10px;">Сертификат о прохождении</div>
+          <div style="font-size:38px;font-weight:700;color:#111827;line-height:1.2;margin-bottom:6px;">Кибербуллинг:</div>
+          <div style="font-size:38px;font-weight:700;color:#1e7c3a;line-height:1.2;margin-bottom:26px;">Личный выбор</div>
+          <div style="font-size:11px;letter-spacing:5px;color:#6b7280;text-transform:uppercase;margin-bottom:12px;">Настоящим подтверждается, что</div>
+          <div style="font-size:32px;font-weight:700;color:#111827;margin-bottom:10px;">${escapeHtml(certData.name)}</div>
+          <div style="width:220px;height:2px;background:linear-gradient(90deg,transparent,#1e7c3a,transparent);margin:0 auto 24px;"></div>
+          <div style="font-size:14px;line-height:1.7;color:#374151;max-width:760px;margin:0 auto 24px;">успешно прошёл(ла) интерактивную образовательную новеллу, посвящённую проблеме кибербуллинга в молодёжной цифровой среде, и продемонстрировал(а) навыки <b style="color:#1e7c3a;">цифровой эмпатии</b>, <b style="color:#1e7c3a;">критического мышления</b> и <b style="color:#1e7c3a;">конструктивного реагирования</b> на травлю в сети.</div>
+          <div style="display:flex;justify-content:center;gap:18px;margin-bottom:20px;">
+            <div style="min-width:180px;padding:10px 24px;border:1.5px solid #2b7cbf;border-radius:8px;background:#f0f7ff;"><div style="font-size:10px;letter-spacing:2px;color:#6b7280;text-transform:uppercase;">Доверие</div><div style="font-size:20px;font-weight:700;color:#2b7cbf;margin-top:2px;">${certData.trust} / 100</div></div>
+            <div style="min-width:180px;padding:10px 24px;border:1.5px solid #2b7cbf;border-radius:8px;background:#f0f7ff;"><div style="font-size:10px;letter-spacing:2px;color:#6b7280;text-transform:uppercase;">Собрано улик</div><div style="font-size:20px;font-weight:700;color:#2b7cbf;margin-top:2px;">${certData.evidence} / 6</div></div>
+          </div>
+          <div style="font-size:10px;letter-spacing:3px;color:#6b7280;text-transform:uppercase;margin-bottom:6px;">Личный результат</div>
+          <div style="font-size:22px;font-weight:700;color:#1e7c3a;">«${certData.ending}»</div>
+        </div>
+        <div style="display:flex;justify-content:center;align-items:center;gap:32px;padding-top:18px;border-top:2px solid #e5e7eb;flex-wrap:wrap;">
+          <div style="font-size:11px;color:#6b7280;line-height:1.7;text-align:center;">ID сертификата: <span style="font-family:'Courier New',monospace;color:#2b7cbf;font-weight:700;">${certData.id}</span></div>
+          <div style="font-size:11px;color:#6b7280;line-height:1.7;text-align:center;">Дата выдачи: <b style="color:#111827;">${certData.date}</b></div>
+        </div>
+      </div>`;
+    document.body.appendChild(printArea);
+    const canvas = await html2canvas(printArea, { scale: 2, backgroundColor: '#ffffff', useCORS: true, logging: false });
+    document.body.removeChild(printArea);
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    const imgData = canvas.toDataURL('image/jpeg', 0.95);
+    pdf.addImage(imgData, 'JPEG', 0, 0, 297, 210);
+    const safeName = certData.name.replace(/[^a-zA-Zа-яА-Я0-9_\s]/g, '').replace(/\s+/g, '_');
+    pdf.save('Sertifikat_Kiberbulling_' + safeName + '.pdf');
+    return true;
+  } catch (err) { console.error('PDF error:', err); alert('Не удалось сохранить PDF. Попробуй ещё раз.'); return false; }
+}
+
+function endScreen(title, rank, mood, paragraphs, epilogue, options = {}) {
+  clearScreen();
+  const div = document.createElement('div');
+  div.className = 'end-screen end-' + mood;
+
+  let evidenceReport = '';
+  if (options.showEvidenceReport && state.evidenceItems.length > 0) {
+    evidenceReport = `
+      <div style="background:rgba(210,168,255,0.08);border:1px solid rgba(210,168,255,0.3);border-radius:8px;padding:14px;margin:18px 0;">
+        <div style="font-size:11px;letter-spacing:2px;color:#d2a8ff;text-transform:uppercase;margin-bottom:8px;text-align:center;">📁 Собранные доказательства</div>
+        ${state.evidenceItems.map(k => { const i = EVIDENCE_DB[k]; return `<div style="font-size:11.5px;color:#c9d1d9;line-height:1.6;margin-bottom:4px;">${i.icon} ${i.title}</div>`; }).join('')}
+      </div>`;
+  }
+
+  let passiveWarning = '';
+  let legalWarning = '';
+  let complicityWarning = '';
+
+  if (options.showPassiveWarning) passiveWarning = buildPassiveWarning();
+  if (options.showLegalWarning) legalWarning = buildLegalWarning();
+  if (state.complicity >= 2 && mood !== 'good') complicityWarning = buildComplicityWarning();
+
+  div.innerHTML = `
+    <span class="rank">${rank}</span>
+    <h1>${title}</h1>
+    <div class="divider"></div>
+    ${paragraphs.map(p => `<p>${p}</p>`).join('')}
+    ${complicityWarning}
+    ${passiveWarning}
+    ${legalWarning}
+    ${evidenceReport}
+    <div class="divider"></div>
+    <p style="font-style:italic;color:#8b949e;text-align:center;">${epilogue}</p>
+  `;
+
+  let certData = null;
+  if (mood === 'good' && state.playerName) {
+    certData = buildCertificateData(title);
+    div.appendChild(buildCertificate(certData));
+    Audio.success();
+  }
+
+  const btnRow = document.createElement('div');
+  const btnRestart = document.createElement('button');
+  btnRestart.className = 'btn';
+  btnRestart.textContent = '🔄 Пройти заново';
+  btnRestart.onclick = () => { Save.clear(); restartGame(); };
+  btnRow.appendChild(btnRestart);
+
+  if (certData) {
+    const btnPdf = document.createElement('button');
+    btnPdf.className = 'btn pdf';
+    btnPdf.textContent = '📄 Скачать сертификат (PDF)';
+    btnPdf.onclick = async () => {
+      btnPdf.disabled = true;
+      btnPdf.textContent = '⏳ Готовим PDF...';
+      const ok = await exportCertificatePDF(certData);
+      btnPdf.disabled = false;
+      btnPdf.textContent = ok ? '✅ Скачано!' : '📄 Скачать сертификат (PDF)';
+      if (ok) setTimeout(() => btnPdf.textContent = '📄 Скачать сертификат (PDF)', 2500);
+    };
+    btnRow.appendChild(btnPdf);
+  }
+
+  div.appendChild(btnRow);
+  content.appendChild(div);
+  scrollDown();
+}
+
+function buildCertificateData(endingTitle) {
+  const id = 'KB-' + Date.now().toString(36).toUpperCase().slice(-8) + '-' + Math.random().toString(36).slice(2, 5).toUpperCase();
+  const date = new Date().toLocaleDateString('ru-RU', { day: '2-digit', month: 'long', year: 'numeric' });
+  return { id, name: state.playerName, ending: endingTitle, trust: Math.max(0, state.trust), evidence: state.evidence, date };
+}
+
+function buildCertificate(data) {
+  const cert = document.createElement('div');
+  cert.className = 'certificate';
+  cert.innerHTML = `
+    <div class="certificate-inner">
+      <div class="cert-header"><div><div class="cert-org">Образовательная программа</div><div class="cert-org-sub">по кибербезопасности и цифровой этике</div></div><div class="cert-logo">◆</div></div>
+      <div class="cert-label">Сертификат о прохождении</div>
+      <div class="cert-title">Кибербуллинг:<br>Личный выбор</div>
+      <div class="cert-presented">Настоящим подтверждается, что</div>
+      <div class="cert-name">${escapeHtml(data.name)}</div>
+      <div class="cert-name-line"></div>
+      <div class="cert-desc">успешно прошёл(ла) интерактивную образовательную новеллу, посвящённую проблеме кибербуллинга в молодёжной цифровой среде, и продемонстрировал(а) навыки <strong>цифровой эмпатии</strong>, <strong>критического мышления</strong> и <strong>конструктивного реагирования</strong> на травлю в сети.</div>
+      <div class="cert-stats"><div class="cert-stat"><div class="cert-stat-label">Доверие</div><div class="cert-stat-value">${data.trust} / 100</div></div><div class="cert-stat"><div class="cert-stat-label">Собрано улик</div><div class="cert-stat-value">${data.evidence} / 6</div></div></div>
+      <div class="cert-result"><div class="cert-result-label">Личный результат</div><div class="cert-result-value">«${data.ending}»</div></div>
+      <div class="cert-footer-clean"><div class="cert-meta-block">ID сертификата: <span class="cert-id">${data.id}</span></div><div class="cert-meta-block">Дата выдачи: <b>${data.date}</b></div></div>
+    </div>`;
+  Save.addCert(data);
+  return cert;
+}
+
+function restartGame() {
+  state = { trust: 0, evidence: 0, evidenceItems: [], day: 1, flags: {}, playerName: Save.getName() || state.playerName, complicity: 0 };
+  currentScene = 'start';
+  updateHUD(); clearScreen(); startGame();
+}
+
+/* ============================================================
+   СЦЕНА 1 — ПРОЛОГ (⚡ быстрый темп)
+============================================================ */
+async function startGame() {
+  currentScene = 'start';
+  if (!state.playerName) await askPlayerName();
+  Audio.init(); Audio.resume(); Audio.startAmbient();
+
+  await sequence([
+    { text: '23:47. Ты листаешь ленту перед сном.', type: 'system' },
+    { text: 'Внезапно телефон вздрагивает — уведомление в общем чате группы.', type: 'system' }
+  ], SPEED.fast);
+
+  await wait(SPEED.shortPause);
+  addMsg('Ребят, смотрите, что этот клоун выложил 😂😂😂', 'author', 'Никита');
+  Audio.notify();
+  await wait(SPEED.fast * 1.2);
+  addMsg('БОТАНИК ЖРЁТ КАК СВИНЬЯ', 'author', 'Никита');
+  await wait(SPEED.fast * 1.2);
+
+  await sequence([
+    { text: 'Уберите это, фу', type: 'author', name: 'Соня' },
+    { text: 'Ахахаха, он реально думает, что он норм?', type: 'author', name: 'Артём' },
+    { text: 'Скинул в мем-канал, пусть весь колледж поржёт', type: 'author', name: 'Никита' },
+    { text: 'Удалите. Пожалуйста.', type: 'author', name: 'Дима' },
+    { text: 'Ой, мы обидели чувства ботана? 😢', type: 'danger', name: 'Никита' }
+  ], SPEED.fast);
+
+  await wait(SPEED.longPause);
+  addMsg('Чат замолкает. Никто больше не пишет. Ты смотришь на экран.', 'system');
+  await wait(SPEED.slow);
+  addMsg('💭 Ты вспоминаешь слова брата: «Если хочешь реально помочь — собирай доказательства. Скрины, время, авторы. Без них ты просто кричишь в пустоту».', 'thought');
+  await wait(SPEED.slow);
+  addMsg('Ты делаешь скриншот чата. На всякий случай.', 'system');
+  await wait(SPEED.pause);
+  addEvidence('chat');
+  await wait(SPEED.pause);
+  Save.save();
+  scene1_choice();
+}
+
+function scene1_choice() {
+  showChoices([
+    { text: '💬 Написать Диме в личку', hint: 'Поддержать его приватно.', action: () => scene1_answer('личка') },
+    { text: '📢 Написать в общий чат', hint: 'Призвать всех остановиться.', danger: true, action: () => scene1_answer('чат') },
+    { text: '😶 Промолчать', hint: 'Закрыть чат и лечь спать.', action: () => scene1_answer('молчание') },
+    { text: '😂 Отправить смеющийся смайлик', hint: 'Это же просто шутка. Все смеются.', danger: true, action: () => scene1_answer('смайлик') },
+    { text: '📤 Переслать мем другу', hint: 'Скинуть скрин из другой группы.', danger: true, action: () => scene1_answer('переслать') }
+  ]);
+}
+
+async function scene1_answer(choice) {
+  clearScreen();
+  if (choice === 'личка') {
+    addMsg('Ты открываешь чат с Димой. Последнее сообщение от него — три месяца назад.', 'system');
+    await wait(SPEED.dialog);
+    addMsg('Дима, ты как?', 'you');
+    await wait(SPEED.dialog);
+    addMsg('Спасибо... но ты тоже видел. Все видели. Какая разница теперь.', 'author', 'Дима');
+    await wait(SPEED.dialog);
+    addMsg('Разница есть. Я здесь.', 'you');
+    await wait(SPEED.dialog);
+    addMsg('...спасибо. Правда.', 'author', 'Дима');
+    changeTrust(15);
+    state.flags.sawDima = true;
+  } else if (choice === 'чат') {
+    addMsg('Ты пишешь в общий чат: «Ребят, может хватит? Это уже перебор».', 'system');
+    await wait(SPEED.dialog);
+    addMsg('О, ещё один защитник нашёлся. Ты тоже ботаник? Или влюбился?', 'danger', 'Никита');
+    await wait(SPEED.dialog);
+    addMsg('Все смеются. Дима ничего не пишет.', 'system');
+    changeTrust(5);
+    state.flags.defendedPublicly = true;
+  } else if (choice === 'молчание') {
+    addMsg('Ты закрываешь чат. Ложишься спать.', 'system');
+    await wait(SPEED.longPause);
+    addMsg('Утро. Общий чат переименован в «ИС-101 (без ботанов)».', 'system');
+    await wait(SPEED.dialog);
+    addMsg('Дима удалён из чата. Травля перешла в закрытый канал.', 'system');
+  } else if (choice === 'смайлик') {
+    addMsg('😂', 'you-bad');
+    await wait(SPEED.dialog);
+    addMsg('Ты просто поставил смайлик. Вроде бы ничего не сделал. Просто посмеялся вместе со всеми.', 'system');
+    await wait(SPEED.dialog);
+    addMsg('💭 Это же шутка. Никто не воспринимает это серьёзно. Так ведь?', 'thought');
+    changeTrust(-5);
+    increaseComplicity(1);
+    state.flags.laughed = true;
+  } else if (choice === 'переслать') {
+    addMsg('Ты скидываешь скрин другу из другой группы.', 'system');
+    await wait(SPEED.longPause);
+    addMsg('Через час скрин оказывается в общем мем-канале колледжа.', 'system');
+    await wait(SPEED.dialog);
+    addMsg('Дима пишет тебе: «Я думал, ты нормальный. Ошибся». И блокирует.', 'danger', 'Дима');
+    changeTrust(-50);
+    increaseComplicity(3);
+    state.flags.betrayed = true;
+  }
+  await wait(SPEED.longPause);
+  scene1_5_brat();
+}
+
+async function scene1_5_brat() {
+  state.day = 2; updateHUD(); clearScreen();
+  await sequence([
+    { text: 'Утро. Кухня. Ты сидишь с чашкой чая.', type: 'system' },
+    { text: 'В комнату заходит брат — он учится на юриста, третий курс.', type: 'system' }
+  ], SPEED.dialog);
+
+  await wait(SPEED.pause);
+  addMsg('Ты чего такой кислый? Опять в телефоне всю ночь?', 'author', 'Брат');
+  await wait(SPEED.dialog);
+  addMsg('У нас в группе одного парня травят. В сети. Я не знаю, что делать.', 'you');
+  await wait(SPEED.dialog);
+  addMsg('Знакомая история. У нас на юрфаке таких дел — вагон. Знаешь, в чём главная ошибка всех, кто хочет помочь?', 'author', 'Брат');
+  await wait(SPEED.dialog);
+  addMsg('Они кричат «остановитесь», «это плохо», «как вам не стыдно». А доказательств — ноль.', 'author', 'Брат');
+  await wait(SPEED.dialog);
+  addMsg('Начнёшь разбираться — а там уже всё удалено. Скрины, время, авторы, метаданные. Всё это нужно собирать сразу.', 'author', 'Брат');
+  await wait(SPEED.dialog);
+  addMsg('Кстати, в каждом колледже должен быть куратор или психолог. Если ты к нему придёшь не с пустыми руками — он обязан отреагировать. Так что не тяни.', 'author', 'Брат');
+  await wait(SPEED.dialog);
+  addMsg('И ещё. Если ты сам в этом участвовал — даже «просто смеялся» или репостил — это тоже соучастие. Не в юридическом смысле, но в человеческом — точно.', 'author', 'Брат');
+  await wait(SPEED.dialog);
+  addMsg('💭 Брат прав. Смех в чате — это не невинная шутка. Это поддержка агрессора.', 'thought');
+  await wait(SPEED.pause);
+  addMsg('📁 Ты открываешь папку на телефоне. Называешь её «Доказательства».', 'system');
+  await wait(SPEED.pause);
+  scene2_start();
+}
+
+async function scene2_start() {
+  clearScreen();
+  await sequence([
+    { text: 'День 2. Утро.', type: 'system' },
+    { text: 'В сети появляется анонимный канал «ИС-101 СЛИВЫ».', type: 'system' },
+    { text: 'Там публикуют личные фото Димы. Его старые посты. Переписки.', type: 'system' }
+  ], SPEED.base);
+  await wait(SPEED.pause);
+  addMsg('📊 В канале 340 подписчиков. Половина твоей группы.', 'danger');
+  await wait(SPEED.dialog);
+  addMsg('Голосование: «Что с ним сделать?»\n🔥 — выгнать\n😂 — заставить удалить соцсети\n💀 — довести до слёз', 'danger', 'ИС-101 СЛИВЫ');
+  await wait(SPEED.dialog);
+  addMsg('У него ещё аккаунт в «Клипах». Там он танцует. Скину ссылку вечером.', 'author', 'Аноним');
+  await wait(SPEED.pause);
+  scene2_choice();
+}
+
+function scene2_choice() {
+  showChoices([
+    { text: '🚨 Пожаловаться в мессенджер', hint: 'Отправить жалобу на канал.', action: () => scene2_answer('жалоба') },
+    { text: '👁 Подписаться', hint: 'Видеть масштаб и готовиться.', action: () => scene2_answer('подписка') },
+    { text: '🔍 Найти автора канала', hint: 'Анализ метаданных. Долго, но надёжно.', evidence: true, action: () => scene2_answer('анализ') },
+    { text: '💬 Написать Диме', hint: 'Предупредить о новом сливе.', action: () => scene2_answer('предупредить') },
+    { text: '😂 Поставить реакции на все посты', hint: 'Это просто развлечение. Ничего серьёзного.', danger: true, action: () => scene2_answer('реакции') }
+  ]);
+}
+
+async function scene2_answer(choice) {
+  clearScreen();
+  if (choice === 'жалоба') {
+    addMsg('Ты нажимаешь «Пожаловаться» на канал.', 'system');
+    await wait(SPEED.longPause);
+    addMsg('Ответ приходит через 2 дня: «Нарушений не найдено».', 'system');
+    changeTrust(5);
+  } else if (choice === 'подписка') {
+    addMsg('Ты подписываешься. Теперь ты видишь всё.', 'system');
+    await wait(SPEED.dialog);
+    addMsg('В том числе — как готовится доксинг. Публикация адреса.', 'danger');
+    state.flags.knowsDoxxing = true;
+  } else if (choice === 'анализ') {
+    addMsg('Ты открываешь консоль. Смотришь метаданные канала.', 'system');
+    await wait(SPEED.dialog);
+    addMsg('Создатель — Никита. Через подставной аккаунт, привязанный к его IP.', 'system');
+    await wait(SPEED.pause);
+    addEvidence('metadata');
+    state.flags.foundNikita = true;
+  } else if (choice === 'предупредить') {
+    addMsg('Ты пишешь Диме: «Там канал появился. Готовится новый слив».', 'you');
+    await wait(SPEED.dialog);
+    addMsg('Я знаю. Я всё вижу. Я не могу это остановить.', 'author', 'Дима');
+    changeTrust(10);
+  } else if (choice === 'реакции') {
+    addMsg('Ты ставишь 😂 на каждый пост в канале. Один за другим.', 'you-bad');
+    await wait(SPEED.dialog);
+    addMsg('Ты ничего не писал. Просто поставил реакции. Формально — ты ни при чём.', 'system');
+    await wait(SPEED.dialog);
+    addMsg('💭 Но эти реакции — топливо. Каждая — сигнал: «продолжай, это смешно».', 'thought');
+    changeTrust(-5);
+    increaseComplicity(2);
+    state.flags.reacted = true;
+    state.flags.foundNikita = true;
+  }
+  await wait(SPEED.pause);
+  scene2_5_chat();
+}
+
+async function scene2_5_chat() {
+  state.day = 3; updateHUD(); clearScreen();
+  await sequence([
+    { text: 'День 3. Вечер.', type: 'system' },
+    { text: 'Ты листаешь общий чат. Никита и его компания продолжают «шутить».', type: 'system' }
+  ], SPEED.base);
+  await wait(SPEED.pause);
+  addMsg('Кто-нибудь знает, где Дима живёт? Хочу открытку отправить 😂', 'danger', 'Никита');
+  await wait(SPEED.dialog);
+  addMsg('Лёш, ты же с ним в одной подгруппе был. Скинь адресок', 'danger', 'Никита');
+  await wait(SPEED.dialog);
+  addMsg('Соня, ты чё молчишь? Ты же вроде с ним в одной школе училась', 'danger', 'Никита');
+  await wait(SPEED.dialog);
+  addMsg('Я не знаю адреса. Отстань.', 'author', 'Соня');
+  await wait(SPEED.pause);
+  addMsg('💭 Это уже не шутки. Это подготовка к доксингу. Нужно что-то делать.', 'thought');
+  await wait(SPEED.pause);
+  scene2_5_choice();
+}
+
+function scene2_5_choice() {
+  showChoices([
+    { text: '📸 Сделать скрин всего чата', hint: 'Зафиксировать переписку — как доказательство.', evidence: true, action: () => scene2_5_answer('скрин') },
+    { text: '⚠️ Написать в чат: «Это уже уголовка»', hint: 'Публично предупредить Никиту.', danger: true, action: () => scene2_5_answer('предупредить') },
+    { text: '🤝 Написать Соне в личку', hint: 'Поговорить со свидетельницей тет-а-тет.', action: () => scene2_5_answer('соня') },
+    { text: '😏 Ответить: «Так, ну ты и жук, конечно 😂»', hint: 'Поддержать Никиту в шутливой форме.', danger: true, action: () => scene2_5_answer('поддержать') }
+  ]);
+}
+
+async function scene2_5_answer(choice) {
+  clearScreen();
+  if (choice === 'скрин') {
+    addMsg('Ты делаешь скриншот всей переписки. Сохраняешь в папку «Доказательства».', 'system');
+    await wait(SPEED.dialog);
+    addEvidence('backup');
+    changeTrust(5);
+    state.flags.savedChat = true;
+    await wait(SPEED.pause);
+    addMsg('💭 Если он завтра напишет что-то ещё — у тебя будет история. А не просто слова.', 'thought');
+  } else if (choice === 'предупредить') {
+    addMsg('Ты пишешь в общий чат: «Ребят, это уже доксинг. Статья 137 УК РФ. Вы уверены?»', 'you');
+    await wait(SPEED.dialog);
+    addMsg('Ой, юрист нашёлся. Иди своей маме расскажи.', 'danger', 'Никита');
+    await wait(SPEED.dialog);
+    addMsg('Соня молчит. Несколько человек удаляют свои сообщения.', 'system');
+    changeTrust(10);
+    state.flags.warnedPublicly = true;
+  } else if (choice === 'соня') {
+    addMsg('Ты пишешь Соне: «Привет. Ты видела, что происходит?»', 'you');
+    await wait(SPEED.dialog);
+    addMsg('Видела. Я боюсь. Если я скажу — они переключатся на меня.', 'author', 'Соня');
+    await wait(SPEED.dialog);
+    addMsg('Я не прошу говорить. Просто не удаляй ничего. Скрины, чаты. Пригодятся.', 'you');
+    await wait(SPEED.dialog);
+    addMsg('Хорошо. Я сохранила переписку с закрытого чата. Там Никита всё координирует.', 'author', 'Соня');
+    changeTrust(10);
+    state.flags.soniaAlly = true;
+  } else if (choice === 'поддержать') {
+    addMsg('Так, ну ты и жук, конечно 😂', 'you-bad');
+    await wait(SPEED.dialog);
+    addMsg('Ха-ха, нашёлся ещё один! Держи краба 🦀', 'danger', 'Никита');
+    await wait(SPEED.dialog);
+    addMsg('💭 Ты вроде бы и не писал оскорблений. Просто пошутил в ответ. Но это была поддержка.', 'thought');
+    await wait(SPEED.dialog);
+    addMsg('Соня выходит из чата. Она всё видела.', 'system');
+    changeTrust(-15);
+    increaseComplicity(2);
+    state.flags.supportedBully = true;
+  }
+  await wait(SPEED.pause);
+  scene3_start();
+}
+
+async function scene3_start() {
+  state.day = 5; updateHUD(); clearScreen();
+  await sequence([
+    { text: '3 часа ночи. День 5.', type: 'system', delay: 600 },
+    { text: 'Ты почти спишь. Телефон вздрагивает.', type: 'system' }
+  ], SPEED.slow);
+  await wait(SPEED.pause);
+  Audio.alarm();
+  addMsg('Максим, ты единственный, кто хоть что-то писал.', 'danger', 'Дима');
+  await wait(SPEED.slow);
+  addMsg('Они выложили мой адрес. Я боюсь выходить из дома.', 'danger', 'Дима');
+  await wait(SPEED.slow);
+  addMsg('Я не могу спать. Я думаю, что лучше просто исчезнуть.', 'danger', 'Дима');
+  await wait(SPEED.longPause);
+  addMsg('⏱ У тебя 30 секунд.', 'system');
+  await wait(SPEED.pause);
+  scene3_choice();
+}
+
+function scene3_choice() {
+  showChoices([
+    { text: '⚡ Срочно ответить', hint: 'По шагам. Спокойно.', action: () => scene3_answer('ответ') },
+    { text: '📞 Позвонить', hint: 'Голос важнее текста.', action: () => scene3_answer('звонок') },
+    { text: '🌙 Написать утром', hint: '«Сейчас ночь, давай утром».', danger: true, action: () => scene3_answer('утро') },
+    { text: '😰 Паника', hint: '«Я не знаю, как это остановить!»', danger: true, action: () => scene3_answer('паника') }
+  ]);
+}
+
+async function scene3_answer(choice) {
+  clearScreen();
+  if (choice === 'ответ') {
+    addMsg('Я здесь. Ты не один.', 'you');
+    await wait(SPEED.pause);
+    addMsg('Шаг 1: закрой чаты.\nШаг 2: напиши, что чувствуешь.\nШаг 3: завтра к куратору вместе.', 'you');
+    await wait(SPEED.dialog);
+    addMsg('Хорошо... я попробую.', 'author', 'Дима');
+    changeTrust(20);
+  } else if (choice === 'звонок') {
+    addMsg('Ты звонишь. Он берёт трубку на шестом гудке.', 'system');
+    await wait(SPEED.dialog);
+    addMsg('Он плачет. Ты просто говоришь с ним. Сорок минут.', 'system');
+    await wait(SPEED.dialog);
+    addMsg('Ты первый, кто позвонил. Спасибо.', 'author', 'Дима');
+    changeTrust(30);
+    state.flags.calledNight = true;
+  } else if (choice === 'утро') {
+    addMsg('Сейчас ночь, давай утром. Держись.', 'you');
+    await wait(SPEED.longPause);
+    addMsg('Утро. Дима не отвечает.', 'danger');
+    await wait(SPEED.dialog);
+    addMsg('Куратор: «Дима взял академический отпуск по состоянию здоровья».', 'danger');
+    changeTrust(-30);
+    await wait(SPEED.longPause);
+    return endScreen(
+      'ИСЧЕЗНОВЕНИЕ', 'Плохая концовка', 'bad',
+      [
+        'Ты не ответил вовремя. Не потому что плохой — потому что устал, испугался, не знал, что сказать.',
+        'Утром его страница была удалена. Через день — вторая. Потом третья.',
+        'Ты больше никогда его не видел. Только иногда вспоминал ту ночь и перечитывал его последнее сообщение.',
+        '«Я думаю, что лучше просто исчезнуть».'
+      ],
+      'Иногда одно сообщение — это всё, что нужно.',
+      { showEvidenceReport: true, showLegalWarning: true, showPassiveWarning: true }
+    );
+  } else if (choice === 'паника') {
+    addMsg('Чёрт, чёрт, что делать?! Я не знаю, как это остановить!', 'you');
+    await wait(SPEED.dialog);
+    addMsg('Ты тоже не знаешь. Значит, никто не знает. Всё, хватит.', 'danger', 'Дима');
+    await wait(SPEED.dialog);
+    addMsg('Он блокирует тебя.', 'system');
+    changeTrust(-40);
+    await wait(SPEED.longPause);
+    return endScreen(
+      'ТИШИНА', 'Плохая концовка', 'bad',
+      [
+        'Ты был рядом — но твоя паника оказалась громче его боли.',
+        'Он не вернулся в колледж. Ни в следующем семестре, ни через год.',
+        'Иногда ты видишь его ник в старых чатах — серый, офлайн, навсегда.',
+        'Ты не знаешь, что произошло. И это самое страшное — не знать.'
+      ],
+      'Паника — честная. Но не всегда помогающая.',
+      { showEvidenceReport: true, showLegalWarning: true, showPassiveWarning: true }
+    );
+  }
+  await wait(SPEED.pause);
+  scene3_5_meeting();
+}
+
+async function scene3_5_meeting() {
+  state.day = 6; updateHUD(); clearScreen();
+  await sequence([
+    { text: 'Утро. Ты приходишь в колледж.', type: 'system' },
+    { text: 'Дима сидит на подоконнике у окна. Один. Смотрит в телефон.', type: 'system' }
+  ], SPEED.base);
+  await wait(SPEED.pause);
+  addMsg('💭 Подойти? Или сделать вид, что не заметил?', 'thought');
+  await wait(SPEED.pause);
+  scene3_5_choice();
+}
+
+function scene3_5_choice() {
+  showChoices([
+    { text: '🤝 Сесть рядом и просто молчать', hint: 'Ничего не говорить. Просто быть рядом.', action: () => scene3_5_answer('молчать') },
+    { text: '💬 Спросить: «Ты как?»', hint: 'Прямой вопрос.', action: () => scene3_5_answer('спросить') },
+    { text: '📱 Показать ему папку с уликами', hint: '«Смотри, что у меня есть. Ты не один в этом».', evidence: true, action: () => scene3_5_answer('показать') },
+    { text: '🚶 Пройти мимо', hint: 'Сегодня не твой день. Может, завтра.', danger: true, action: () => scene3_5_answer('мимо') }
+  ]);
+}
+
+async function scene3_5_answer(choice) {
+  clearScreen();
+  if (choice === 'молчать') {
+    addMsg('Ты садишься рядом. Ничего не говоришь. Просто рядом.', 'system');
+    await wait(SPEED.dialog);
+    addMsg('...спасибо. Что не спрашиваешь «как дела». Я не знаю, что отвечать.', 'author', 'Дима');
+    await wait(SPEED.dialog);
+    addMsg('Я и не спрашиваю.', 'you');
+    await wait(SPEED.dialog);
+    addMsg('Он впервые за неделю улыбается. Чуть-чуть.', 'system');
+    changeTrust(15);
+  } else if (choice === 'спросить') {
+    addMsg('Ты как?', 'you');
+    await wait(SPEED.dialog);
+    addMsg('Как я? Как человек, которому весь колледж желает смерти. Нормально.', 'author', 'Дима');
+    await wait(SPEED.dialog);
+    addMsg('Он отворачивается. Ты понимаешь, что вопрос был глупый.', 'system');
+    changeTrust(3);
+  } else if (choice === 'показать') {
+    addMsg('Смотри. Я собираю доказательства. У меня уже кое-что есть.', 'you');
+    await wait(SPEED.dialog);
+    addMsg('Дима открывает папку. Смотрит. Молчит долго.', 'system');
+    await wait(SPEED.dialog);
+    addMsg('Ты... ты правда это делаешь? Для меня?', 'author', 'Дима');
+    await wait(SPEED.dialog);
+    addMsg('Я не один, что ли?', 'author', 'Дима');
+    await wait(SPEED.dialog);
+    addMsg('Не один.', 'you');
+    changeTrust(25);
+    state.flags.showedEvidence = true;
+    await wait(SPEED.dialog);
+    addMsg('Кстати, у меня сохранилась запись экрана. Я успел записать, как они выложили адрес.', 'author', 'Дима');
+    await wait(SPEED.pause);
+    addEvidence('screenrecord');
+  } else if (choice === 'мимо') {
+    addMsg('Ты проходишь мимо. Делаешь вид, что не заметил.', 'system');
+    await wait(SPEED.longPause);
+    addMsg('Дима смотрит вслед. Он всё видел.', 'system');
+    await wait(SPEED.pause);
+    addMsg('💭 Может, завтра. Может, потом. Может, никогда.', 'thought');
+    changeTrust(-15);
+  }
+  await wait(SPEED.pause);
+  scene4_start();
+}
+
+async function scene4_start() {
+  updateHUD(); clearScreen();
+  await sequence([
+    { text: 'Перемена. К тебе подходит Соня.', type: 'system' },
+    { text: 'Она оглядывается — не смотрит ли кто.', type: 'system' }
+  ], SPEED.base);
+  await wait(SPEED.pause);
+  addMsg('Слушай... я видела твою папку в облаке. Ты собираешь доказательства?', 'author', 'Соня');
+  await wait(SPEED.dialog);
+  addMsg('Да. Хочу довести это до конца.', 'you');
+  await wait(SPEED.dialog);
+  addMsg('У меня есть переписка закрытого чата. Никита там всё координирует. Я... я не могу больше это носить.', 'author', 'Соня');
+  await wait(SPEED.dialog);
+  addMsg('💭 Она боится. Если я возьму скрины — стану ответственным. Если не возьму — она может их удалить.', 'thought');
+  await wait(SPEED.pause);
+  scene4_choice();
+}
+
+function scene4_choice() {
+  showChoices([
+    { text: '📸 Взять скрины', hint: 'Это ключевая улика. Взамен — защитить Соню.', evidence: true, action: () => scene4_answer('взять') },
+    { text: '🤐 Отказаться', hint: '«Не хочу, чтобы ты рисковала».', action: () => scene4_answer('отказаться') },
+    { text: '👥 Предложить пойти вместе к куратору', hint: 'Ей будет спокойнее, если ты рядом.', action: () => scene4_answer('вместе') }
+  ]);
+}
+
+async function scene4_answer(choice) {
+  clearScreen();
+  if (choice === 'взять') {
+    addMsg('Спасибо. Я тебя не подставлю. Если что — скажу, что это я нашёл.', 'you');
+    await wait(SPEED.dialog);
+    addMsg('Спасибо... я боюсь, но так легче.', 'author', 'Соня');
+    await wait(SPEED.pause);
+    addEvidence('witness');
+    changeTrust(10);
+    state.flags.soniaGaveEvidence = true;
+  } else if (choice === 'отказаться') {
+    addMsg('Не хочу, чтобы ты рисковала. Если Никита узнает — переключится на тебя.', 'you');
+    await wait(SPEED.dialog);
+    addMsg('...ты прав. Я удалю их, наверное.', 'author', 'Соня');
+    await wait(SPEED.pause);
+    addMsg('💭 Ты сделал правильно. Но одна улика потеряна навсегда.', 'thought');
+  } else if (choice === 'вместе') {
+    addMsg('Пойдём вместе. Ты не будешь одна.', 'you');
+    await wait(SPEED.dialog);
+    addMsg('Хорошо. Я согласна.', 'author', 'Соня');
+    await wait(SPEED.pause);
+    addEvidence('witness');
+    changeTrust(15);
+    state.flags.soniaGaveEvidence = true;
+    state.flags.soniaWitness = true;
+  }
+  await wait(SPEED.pause);
+  scene5_start();
+}
+
+async function scene5_start() {
+  state.day = 7; updateHUD(); clearScreen();
+  await sequence([
+    { text: 'День 7. Утро.', type: 'system' },
+    { text: 'У тебя есть доверие Димы, доказательства, понимание масштаба.', type: 'system' }
+  ], SPEED.base);
+  await wait(SPEED.pause);
+  addMsg(`📁 В твоей папке: ${state.evidence} ${pluralEvidence(state.evidence)}.`, 'system');
+  if (state.evidence >= 3) {
+    await wait(SPEED.pause);
+    addMsg('💭 Этого хватит для серьёзного разговора. Куратор поможет.', 'thought');
+  } else if (state.evidence > 0) {
+    await wait(SPEED.pause);
+    addMsg('💭 Маловато. Но можно попробовать.', 'thought');
+  } else {
+    await wait(SPEED.pause);
+    addMsg('💭 У тебя почти ничего нет. Придётся действовать иначе.', 'thought');
+  }
+  await wait(SPEED.pause);
+  scene5_choice();
+}
+
+function pluralEvidence(n) {
+  if (n === 1) return 'улика';
+  if (n >= 2 && n <= 4) return 'улики';
+  return 'улик';
+}
+
+function scene5_choice() {
+  const choices = [];
+  choices.push({ text: '🔒 Вариант A: «Цифровой детокс»', hint: 'Полное удаление соцсетей.', action: () => scene5_answer('A') });
+  choices.push({ text: '🎤 Вариант B: «Публичный ответ»', hint: 'Видеообращение или пост без агрессии.', action: () => scene5_answer('B') });
+  if (state.flags.foundNikita) {
+    choices.push({ text: '⚔ Вариант C: «Техническая месть»', hint: 'Анонимно слить скелеты Никиты.', danger: true, action: () => scene5_answer('C') });
+  }
+  if (state.evidence >= 3) {
+    choices.push({ text: '🏛 Вариант D: «Системный подход»', hint: `Куратор + психолог + ${state.evidence} ${pluralEvidence(state.evidence)}.`, evidence: true, action: () => scene5_answer('D') });
+  } else {
+    choices.push({ text: '🏛 Вариант D: «Системный подход» (недоступно)', hint: `Нужно минимум 3 улики. У тебя: ${state.evidence}.`, action: () => { addMsg('💭 Без доказательств сложно. Куратор поможет, но доказательства сильно упростят дело.', 'thought'); scene5_choice(); } });
+  }
+  showChoices(choices);
+}
+
+async function scene5_answer(variant) {
+  clearScreen();
+  if (variant === 'A') {
+    addMsg('Ты предлагаешь Диме полностью уйти из сети.', 'system');
+    await wait(SPEED.dialog);
+    addMsg('Он удаляет все аккаунты. Меняет номер.', 'system');
+    await wait(SPEED.dialog);
+    addMsg('Травля прекращается. Но в реальности он остаётся один.', 'system');
+    await wait(SPEED.dialog);
+    addMsg('Спасибо, что помог. Только... я как будто перестал существовать.', 'author', 'Дима');
+    return endScreen(
+      'НЕВИДИМКА', 'Нейтральная концовка', 'neutral',
+      [
+        'Дима выжил. Он в безопасности. Но ты видишь, как он проходит по коридору — и никто не подходит к нему.',
+        'Он сдал сессию. Он в порядке. Он один.',
+        'Иногда безопасность и одиночество — это одно и то же.'
+      ],
+      'Иногда спасти — значит спрятать. Но спрятанное не лечится.',
+      { showEvidenceReport: true, showPassiveWarning: true }
+    );
+  }
+  if (variant === 'B') {
+    addMsg('Вы вместе записываете короткое видео. Без имён. Без агрессии.', 'system');
+    await wait(SPEED.dialog);
+    addMsg('«Меня травили. Пять дней. Я не спал. Я боялся. Но я выжил. Если ты это читаешь — ты не один».', 'author', 'Дима');
+    await wait(SPEED.dialog);
+    addMsg('Видео набирает 10 000 просмотров за сутки.', 'system');
+    await wait(SPEED.dialog);
+    addMsg('Никита удаляет канал. Молча.', 'system');
+    return endScreen(
+      'ГОЛОС', 'Хорошая концовка', 'good',
+      [
+        'Дима не стал героем. Он не хотел им быть. Но он перестал быть жертвой.',
+        'Через месяц его пригласили в студсовет — вести направление по кибербезопасности.',
+        'Травля не исчезла из мира. Но в этом колледже — стало тише.',
+        'Ты не сделал ничего особенного. Просто не отвёл взгляд.'
+      ],
+      'Иногда нужно просто сказать вслух то, что все видят.',
+      { showEvidenceReport: true }
+    );
+  }
+  if (variant === 'C') {
+    addMsg('Ты используешь свои навыки. Находишь переписки Никиты. Его слабые места.', 'system');
+    await wait(SPEED.dialog);
+    addMsg('Анонимно сливаешь это в тот же канал.', 'danger');
+    await wait(SPEED.dialog);
+    addMsg('Канал удалён. Никита в панике.', 'danger');
+    await wait(SPEED.dialog);
+    addMsg('Но травля не закончилась. Она нашла новую цель.', 'danger');
+    await wait(SPEED.dialog);
+    addMsg('Я не хотел, чтобы кто-то ещё через это прошёл. Даже он.', 'author', 'Дима');
+    return endScreen(
+      'БУМЕРАНГ', 'Серая концовка', 'neutral',
+      [
+        'Дима свободен. Никита — нет.',
+        'Цикл не разорван. Он просто перевернулся.',
+        'Ты выиграл бой. Но проиграл войну.'
+      ],
+      'Ненависть — это тоже кибербуллинг. Просто с другой стороны.',
+      { showEvidenceReport: true, showPassiveWarning: true }
+    );
+  }
+
+  if (variant === 'D') {
+    addMsg('Ты идёшь к куратору. Вместе с Димой. В руках — папка с доказательствами.', 'system');
+    await wait(SPEED.dialog);
+
+    addMsg('Проходите, ребята. Садитесь. Что случилось?', 'teacher', 'Куратор — Ольга Петровна');
+    await wait(SPEED.dialog);
+
+    addMsg('Ольга Петровна, мы по поводу травли. Против Димы. Вот доказательства.', 'you');
+    await wait(SPEED.dialog);
+
+    addMsg('Так. Показывайте.', 'teacher', 'Куратор — Ольга Петровна');
+    await wait(SPEED.pause);
+
+    addMsg('Она открывает папку. Смотрит метаданные канала. Читает переписку. Её лицо мрачнеет.', 'system');
+    await wait(SPEED.dialog);
+
+    addMsg('Это серьёзно. Это уже не «детские шалости». Это уголовная статья. Вы правильно сделали, что пришли.', 'teacher', 'Куратор — Ольга Петровна');
+    await wait(SPEED.dialog);
+
+    addMsg('Я сейчас же звоню психологу и директору. Дима, ты можешь остаться здесь. Никуда не уходи, хорошо?', 'teacher', 'Куратор — Ольга Петровна');
+    await wait(SPEED.dialog);
+
+    addMsg('Дима кивает. Впервые за неделю он не смотрит в пол.', 'system');
+    await wait(SPEED.pause);
+
+    if (state.evidence >= 4) {
+      addMsg('Куратор вызывает Никиту. Через час — собрание с психологом, родителями и директором.', 'system');
+      await wait(SPEED.dialog);
+      addMsg('Никита сначала упирается. Но метаданные, скрины, показания — всё против него.', 'system');
+      await wait(SPEED.dialog);
+      addMsg('Он подписывает признание. Добровольно. В присутствии психолога.', 'system');
+      await wait(SPEED.pause);
+      addEvidence('confession');
+      state.flags.fullJustice = true;
+
+      await wait(SPEED.dialog);
+      addMsg('Ольга Петровна садится рядом с Димой. Кладёт руку ему на плечо.', 'system');
+      await wait(SPEED.dialog);
+      addMsg('Дима, если тебе понадобится помощь — я всегда здесь. И психолог тоже. Мы разберёмся. Обещаю.', 'teacher', 'Куратор — Ольга Петровна');
+      await wait(SPEED.dialog);
+      addMsg('Спасибо... я не думал, что кто-то вступится.', 'author', 'Дима');
+      await wait(SPEED.dialog);
+      addMsg('Это моя работа. И моя ответственность тоже. Я должна была раньше заметить.', 'teacher', 'Куратор — Ольга Петровна');
+    } else {
+      addMsg('Куратор вызывает Никиту. Разговор — час. Долгий и жёсткий.', 'system');
+      await wait(SPEED.dialog);
+      addMsg('Канал удалён. Никита извиняется перед группой. Публично.', 'system');
+      await wait(SPEED.dialog);
+      addMsg('Ольга Петровна собирает группу и говорит с каждым. Отдельно.', 'system');
+      await wait(SPEED.dialog);
+      addMsg('Знаете, что самое страшное? Когда все видели — и никто не сказал. Сегодня один человек сказал. И этого хватило.', 'teacher', 'Куратор — Ольга Петровна');
+    }
+
+    await wait(SPEED.dialog);
+    addMsg('Дима возвращается в группу. Он всё ещё тихий. Но он улыбается.', 'system');
+    await wait(SPEED.dialog);
+    addMsg('Ольга Петровна записывает тебя в службу примирения колледжа. Говорит — из тебя выйдет толк.', 'system');
+
+    const extraLine = state.flags.fullJustice
+      ? 'Признание Никиты легло в основу дела. Его перевели в другой колледж. А Дима — он теперь ведёт кружок по цифровой безопасности для младших курсов.'
+      : 'Никита больше не пишет в чат. Через месяц он перевёлся. А Дима — он постепенно приходит в себя.';
+
+    return endScreen(
+      'ТОЧКА ОПОРЫ', 'Лучшая концовка', 'good',
+      [
+        'Система сработала. Не потому что она идеальная — потому что рядом оказались люди, которым не всё равно.',
+        'Куратор не отмахнулась. Она выслушала, поверила и довела дело до конца.',
+        extraLine,
+        'А ты — ты просто сидел рядом в 3 часа ночи. И этого хватило.'
+      ],
+      'Иногда достаточно одного человека, который скажет: «Я тебе верю. Давай разберёмся вместе».',
+      { showEvidenceReport: true }
+    );
+  }
+}
+
+const soundBtn = document.getElementById('sound-btn');
+soundBtn.onclick = () => { const on = Audio.toggle(); soundBtn.textContent = on ? '🔊' : '🔇'; soundBtn.classList.toggle('muted', !on); };
+
+const fsBtn = document.getElementById('fs-btn');
+fsBtn.onclick = () => {
+  const game = document.getElementById('game');
+  if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+    if (game.requestFullscreen) game.requestFullscreen();
+    else if (game.webkitRequestFullscreen) game.webkitRequestFullscreen();
+  } else {
+    if (document.exitFullscreen) document.exitFullscreen();
+    else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+  }
+};
+
+const evidenceBtn = document.getElementById('evidence-btn');
+evidenceBtn.onclick = openEvidenceFolder;
+
+document.body.addEventListener('touchstart', () => { Audio.init(); Audio.resume(); }, { once: true });
+document.body.addEventListener('click', () => { Audio.init(); Audio.resume(); }, { once: true });
+
+window.onload = async () => { updateHUD(); await startGame(); };
+setInterval(() => { if (state.playerName) Save.save(); }, 5000);
+window.addEventListener('beforeunload', () => Save.save());
+</script>
+
+</body>
+</html>
